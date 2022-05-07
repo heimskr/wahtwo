@@ -74,13 +74,12 @@ namespace Wahtwo {
 	}
 
 	void FSEventsWatcher::callback(size_t num_events, const char **paths, const FSEventStreamEventFlags *event_flags,
-	                               const FSEventStreamEventId *event_ids) {
+	                               const FSEventStreamEventId *) {
 		for (size_t i = 0; i < num_events; ++i) {
 			std::filesystem::path path(paths[i]);
 			if (!filter || filter(path)) {
 				onAny(path);
 				const auto flags = event_flags[i];
-				const auto ids = event_ids[i];
 				const bool removed = (flags & kFSEventStreamEventFlagItemRemoved) != 0;
 				if (!removed && (flags & kFSEventStreamEventFlagItemCreated) != 0 && onCreate)
 					onCreate(path);

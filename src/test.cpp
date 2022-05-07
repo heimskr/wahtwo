@@ -20,6 +20,6 @@ int main() {
 			watcher.stop();
 	};
 	watcher.start();
-	watcher.worker.join();
+	watcher.join();
 }
 

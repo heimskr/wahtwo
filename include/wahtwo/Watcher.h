@@ -28,8 +28,8 @@ namespace Wahtwo {
 
 			virtual void start() = 0;
 			virtual void stop() = 0;
+			virtual void join() { worker.join(); }
 			virtual bool isRunning() const = 0;
-
 			virtual const std::vector<std::string> & getPaths() = 0;
 
 		protected:
