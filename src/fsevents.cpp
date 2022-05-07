@@ -19,6 +19,15 @@ static CFArrayRef getArrayRef(const std::vector<std::string> &strings) {
 	return CFArrayCreate(nullptr, reinterpret_cast<const void **>(string_refs.data()), string_refs.size(), nullptr);
 }
 
+static bool is_subpath(const std::filesystem::path &basepath, const std::filesystem::path &subpath) {
+	// https://stackoverflow.com/a/70888233/227663
+	for (auto base = basepath.begin(), sub = subpath.begin(), end = basepath.end(), subend = subpath.end();
+		 base != end; ++base, ++sub)
+		if (sub == subend || *base != *sub)
+			return false;
+	return true;
+}
+
 namespace Wahtwo {
 	void fsew_callback(ConstFSEventStreamRef, void *callback_info, size_t num_events, void *event_paths,
 	                   const FSEventStreamEventFlags event_flags[], const FSEventStreamEventId event_ids[]) {
@@ -43,7 +52,7 @@ namespace Wahtwo {
 			throw std::runtime_error("Can't start FSEventsWatcher: already running");
 		running = true;
 		context = std::unique_ptr<FSEventStreamContext>(new FSEventStreamContext {0, this, nullptr, nullptr, nullptr});
-		stream = FSEventStreamCreate(kCFAllocatorDefault, fsew_callback, context.get(), getArrayRef(paths),
+		stream = FSEventStreamCreate(kCFAllocatorDefault, fsew_callback, context.get(), getArrayRef(pathStrings),
 			kFSEventStreamEventIdSinceNow, 0.5,
 			subfiles? kFSEventStreamCreateFlagFileEvents : kFSEventStreamCreateFlagNone);
 		FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
@@ -68,22 +77,48 @@ namespace Wahtwo {
 	void FSEventsWatcher::setPaths(const std::vector<std::string> &paths_) {
 		if (cfPaths != nullptr)
 			CFRelease(cfPaths);
-		cfPaths = getArrayRef(paths = paths_);
+		cfPaths = getArrayRef(pathStrings = paths_);
+		paths.clear();
+		for (const auto &string: pathStrings)
+			try {
+				paths.insert(std::filesystem::canonical(string));
+			} catch (const std::filesystem::filesystem_error &) {
+				paths.insert(string);
+			}
 	}
 
-	void FSEventsWatcher::callback(size_t num_events, const char **paths, const FSEventStreamEventFlags *event_flags,
-	                               const FSEventStreamEventId *) {
+	void FSEventsWatcher::callback(size_t num_events, const char **event_paths,
+	                               const FSEventStreamEventFlags *event_flags, const FSEventStreamEventId *) {
 		for (size_t i = 0; i < num_events; ++i) {
-			std::filesystem::path path(paths[i]);
+			std::filesystem::path path(event_paths[i]);
 			if (!filter || filter(path)) {
 				const auto flags = event_flags[i];
 				const bool removed = (flags & kFSEventStreamEventFlagItemRemoved) != 0;
 				if (!removed && (flags & kFSEventStreamEventFlagItemCreated) != 0 && onCreate)
 					onCreate(path);
-				if (removed && onRemove)
-					onRemove(path);
-				if ((flags & kFSEventStreamEventFlagItemRenamed) != 0 && onRename)
-					onRename(path);
+				if (removed) {
+					// This is so convoluted. inotify is better.
+					if (paths.contains(path)) {
+						if (onRemoveSelf)
+							onRemoveSelf(path);
+					} else if (onRemoveChild)
+						for (const auto &watched: paths)
+							if (is_subpath(watched, path)) {
+								onRemoveChild(watched, path);
+								break;
+							}
+				}
+				if ((flags & kFSEventStreamEventFlagItemRenamed) != 0) {
+					if (paths.contains(path)) {
+						if (onRenameSelf)
+							onRenameSelf(path);
+					} else if (onRenameChild)
+						for (const auto &watched: paths)
+							if (is_subpath(watched, path)) {
+								onRenameChild(watched, path);
+								break;
+							}
+				}
 				if (!removed && (flags & kFSEventStreamEventFlagItemModified) != 0 && onModify)
 					onModify(path);
 				if ((flags & kFSEventStreamEventFlagItemChangeOwner) != 0 && onAttributes)

@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include <csignal>
 #include <stdexcept>
 #include <string>
@@ -65,7 +63,7 @@ namespace Wahtwo {
 				const std::filesystem::path path =
 					std::string(reinterpret_cast<const char *>(event) + offsetof(inotify_event, name), event->len);
 				if ((mask & IN_CREATE) != 0 && onCreate)
-					onCreate(wd_path, path);
+					onCreate(path);
 				if ((mask & IN_DELETE_SELF) != 0 && onRemoveSelf)
 					onRemoveSelf(path);
 				if ((mask & IN_DELETE) != 0 && onRemoveChild)

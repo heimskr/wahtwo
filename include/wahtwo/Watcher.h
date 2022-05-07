@@ -6,6 +6,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -18,7 +19,7 @@ namespace Wahtwo {
 			using Filter = std::function<bool(const std::filesystem::path &)>;
 
 			Filter filter;
-			MultiCallback onCreate;
+			Callback onCreate;
 			Callback onRemoveSelf;
 			MultiCallback onRemoveChild;
 			Callback onRenameSelf;
@@ -66,7 +67,6 @@ namespace Wahtwo {
 #ifdef __APPLE__
 #include <CoreServices/CoreServices.h>
 
-
 namespace Wahtwo {
 	void fsew_callback(ConstFSEventStreamRef, void *, size_t, void *, const FSEventStreamEventFlags *,
 	                   const FSEventStreamEventId *);
@@ -79,12 +79,13 @@ namespace Wahtwo {
 			void start() override;
 			void stop() override;
 			bool isRunning() const override { return running; }
-			const std::vector<std::string> & getPaths() override { return paths; }
+			const std::vector<std::string> & getPaths() override { return pathStrings; }
 
 		private:
 			bool subfiles;
 			bool running = false;
-			std::vector<std::string> paths;
+			std::vector<std::string> pathStrings;
+			std::set<std::filesystem::path> paths;
 			CFArrayRef cfPaths = nullptr;
 			FSEventStreamRef stream = nullptr;
 			std::unique_ptr<FSEventStreamContext> context;

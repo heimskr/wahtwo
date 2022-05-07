@@ -9,12 +9,10 @@ int main() {
 	watcher.filter        = [](const auto &path) { return path.extension() == ".cpp";  };
 	watcher.onRemoveSelf  = [](const auto &path) { std::cout << path << " removed\n";  };
 	watcher.onRenameSelf  = [](const auto &path) { std::cout << path << " renamed\n";  };
+	watcher.onCreate      = [](const auto &path) { std::cout << path << " created\n";  };
 	watcher.onModify      = [](const auto &path) { std::cout << path << " modified\n"; };
 	watcher.onClone       = [](const auto &path) { std::cout << path << " cloned\n";   };
 	watcher.onAttributes  = [](const auto &path) { std::cout << path << " changed attributes\n"; };
-	watcher.onCreate      = [](const auto &dir, const auto &child) {
-		std::cout << child << " created in " << dir << '\n';
-	};
 	watcher.onRemoveChild = [](const auto &dir, const auto &child) {
 		std::cout << child << " removed in " << dir << '\n';
 	};
