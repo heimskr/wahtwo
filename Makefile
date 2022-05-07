@@ -1,7 +1,5 @@
 COMPILER        ?= clang++
 CFLAGS          := -std=c++20 -g -Wall -Wextra -Iinclude
-SOURCES         := $(shell find -L src -name '*.cpp' | sed -nE '/test|fsevents|inotify/!p')
-OBJECTS         := $(SOURCES:.cpp=.o)
 
 ifeq ($(shell uname -s), Darwin)
 IMPLEMENTATION  := fsevents
@@ -18,10 +16,10 @@ endif
 
 all: wahtwo
 
-wahtwo.a: $(OBJECTS) src/$(IMPLEMENTATION).o
+wahtwo.a: src/$(IMPLEMENTATION).o
 	$(AR) rcs $@ $^
 
-wahtwo: $(OBJECTS) src/$(IMPLEMENTATION).o src/test.o
+wahtwo: src/$(IMPLEMENTATION).o src/test.o
 	$(COMPILER) $^ -o $@ $(LDFLAGS)
 
 %.o: %.cpp include/wahtwo/Watcher.h

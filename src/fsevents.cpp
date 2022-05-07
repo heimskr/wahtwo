@@ -46,11 +46,9 @@ namespace Wahtwo {
 		stream = FSEventStreamCreate(kCFAllocatorDefault, fsew_callback, context.get(), getArrayRef(paths),
 			kFSEventStreamEventIdSinceNow, 0.5,
 			subfiles? kFSEventStreamCreateFlagFileEvents : kFSEventStreamCreateFlagNone);
-		worker = std::thread([this] {
-			FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
-			FSEventStreamStart(stream);
-			CFRunLoopRun();
-		});
+		FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
+		FSEventStreamStart(stream);
+		CFRunLoopRun();
 	}
 
 	void FSEventsWatcher::stop() {
@@ -90,8 +88,8 @@ namespace Wahtwo {
 					onRename(path);
 				if (!removed && (flags & kFSEventStreamEventFlagItemModified) != 0 && onModify)
 					onModify(path);
-				if ((flags & kFSEventStreamEventFlagItemChangeOwner) != 0 && onOwnerChange)
-					onOwnerChange(path);
+				if ((flags & kFSEventStreamEventFlagItemChangeOwner) != 0 && onAttributes)
+					onAttributes(path);
 				if ((flags & kFSEventStreamEventFlagItemCloned) != 0 && onClone)
 					onClone(path);
 			}

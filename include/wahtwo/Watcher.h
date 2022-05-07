@@ -1,7 +1,10 @@
 #pragma once
 
+#include <cerrno>
+#include <string.h>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <thread>
@@ -11,29 +14,48 @@ namespace Wahtwo {
 	class WatcherBase {
 		public:
 			using Callback = std::function<void(const std::filesystem::path &)>;
+			using MultiCallback = std::function<void(const std::filesystem::path &, const std::filesystem::path &)>;
 			using Filter = std::function<bool(const std::filesystem::path &)>;
 
 			Filter filter;
-			Callback onCreate;
-			Callback onRemove;
-			Callback onRename;
+			MultiCallback onCreate;
+			Callback onRemoveSelf;
+			MultiCallback onRemoveChild;
+			Callback onRenameSelf;
+			MultiCallback onRenameChild;
 			Callback onModify;
-			Callback onOwnerChange;
+			Callback onAttributes;
+			/** FSEvents (macOS) only. */
 			Callback onClone;
 			Callback onAny;
-
-			std::thread worker;
 
 			virtual ~WatcherBase() = default;
 
 			virtual void start() = 0;
 			virtual void stop() = 0;
-			virtual void join() { worker.join(); }
 			virtual bool isRunning() const = 0;
 			virtual const std::vector<std::string> & getPaths() = 0;
 
 		protected:
 			WatcherBase() = default;
+	};
+
+	class Error: public std::runtime_error {
+		public:
+			Error(const std::string &what_, int error_): std::runtime_error(what_), error(error_) {
+				errorString = strerror_l(errno, uselocale(locale_t(0)));
+				description = what_ + ": " + errorString;
+			}
+
+			int error;
+
+		private:
+			std::string description;
+			char *errorString = nullptr;
+
+			const char * what() const throw() {
+				return description.c_str();
+			}
 	};
 }
 
@@ -74,7 +96,26 @@ namespace Wahtwo {
 	using Watcher = FSEventsWatcher;
 }
 #elif defined(__linux__)
+#include <sys/inotify.h>
+
 namespace Wahtwo {
+	class INotifyWatcher: public WatcherBase {
+		public:
+			INotifyWatcher(const std::vector<std::string> &paths, bool = true);
+			~INotifyWatcher() override;
+
+			void start() override;
+			void stop() override;
+			bool isRunning() const override { return running; }
+			const std::vector<std::string> & getPaths() override { return paths; }
+
+		private:
+			bool running = false;
+			std::vector<std::string> paths;
+			int fd;
+			std::map<int, std::string> watchDescriptors;
+	};
+
 	using Watcher = INotifyWatcher;
 }
 #endif
