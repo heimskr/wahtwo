@@ -60,8 +60,8 @@ namespace Wahtwo {
 					break;
 				const auto &wd_path = watchDescriptors.at(event->wd);
 				const auto mask = event->mask;
-				const std::filesystem::path path =
-					std::string(reinterpret_cast<const char *>(event) + offsetof(inotify_event, name));
+				const std::filesystem::path path = std::filesystem::path(wd_path)
+					/ std::string(reinterpret_cast<const char *>(event) + offsetof(inotify_event, name));
 				if ((mask & IN_CREATE) != 0 && onCreate)
 					onCreate(path);
 				if ((mask & IN_DELETE_SELF) != 0 && onRemoveSelf)

@@ -14,7 +14,7 @@ endif
 
 .PHONY: all test clean
 
-all: wahtwo
+all: libwahtwo.a
 
 libwahtwo.a: src/$(IMPLEMENTATION).o
 	$(AR) rcs $@ $^
