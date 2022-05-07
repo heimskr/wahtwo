@@ -1,13 +1,28 @@
 #pragma once
 
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace Wahtwo {
 	class WatcherBase {
 		public:
+			using Callback = std::function<void(const std::filesystem::path &)>;
+			using Filter = std::function<bool(const std::filesystem::path &)>;
+
+			Filter filter;
+			Callback onCreate;
+			Callback onRemove;
+			Callback onRename;
+			Callback onModify;
+			Callback onOwnerChange;
+			Callback onClone;
+
+			std::thread worker;
+
 			virtual ~WatcherBase() = default;
 
 			virtual void start() = 0;

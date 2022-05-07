@@ -1,5 +1,5 @@
 COMPILER        ?= clang++
-CFLAGS          := -Iinclude
+CFLAGS          := -std=c++20 -Wall -Wextra -Iinclude
 SOURCES         := $(shell find -L src -name '*.cpp' | sed -nE '/test|fsevents|inotify/!p')
 OBJECTS         := $(SOURCES:.cpp=.o)
 
