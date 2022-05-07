@@ -26,7 +26,7 @@ namespace Wahtwo {
 			reinterpret_cast<const char **>(event_paths), event_flags, event_ids);
 	}
 
-	FSEventsWatcher::FSEventsWatcher(const std::vector<std::string> &paths_) {
+	FSEventsWatcher::FSEventsWatcher(const std::vector<std::string> &paths_, bool subfiles_): subfiles(subfiles_) {
 		setPaths(paths_);
 	}
 
@@ -44,7 +44,8 @@ namespace Wahtwo {
 		running = true;
 		context = std::unique_ptr<FSEventStreamContext>(new FSEventStreamContext {0, this, nullptr, nullptr, nullptr});
 		stream = FSEventStreamCreate(kCFAllocatorDefault, fsew_callback, context.get(), getArrayRef(paths),
-			kFSEventStreamEventIdSinceNow, 0.5, kFSEventStreamCreateFlagFileEvents);
+			kFSEventStreamEventIdSinceNow, 0.5,
+			subfiles? kFSEventStreamCreateFlagFileEvents : kFSEventStreamCreateFlagNone);
 		worker = std::thread([this] {
 			FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
 			FSEventStreamStart(stream);

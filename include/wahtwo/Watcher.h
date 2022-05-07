@@ -47,7 +47,7 @@ namespace Wahtwo {
 
 	class FSEventsWatcher: public WatcherBase {
 		public:
-			FSEventsWatcher(const std::vector<std::string> &paths);
+			FSEventsWatcher(const std::vector<std::string> &paths, bool subfiles = true);
 			~FSEventsWatcher() override;
 
 			void start() override;
@@ -56,6 +56,7 @@ namespace Wahtwo {
 			const std::vector<std::string> & getPaths() override { return paths; }
 
 		private:
+			bool subfiles;
 			bool running = false;
 			std::vector<std::string> paths;
 			CFArrayRef cfPaths = nullptr;
