@@ -16,7 +16,7 @@ endif
 
 all: wahtwo
 
-wahtwo.a: src/$(IMPLEMENTATION).o
+libwahtwo.a: src/$(IMPLEMENTATION).o
 	$(AR) rcs $@ $^
 
 wahtwo: src/$(IMPLEMENTATION).o src/test.o
