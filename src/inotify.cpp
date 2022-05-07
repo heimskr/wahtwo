@@ -62,22 +62,24 @@ namespace Wahtwo {
 				const auto mask = event->mask;
 				const std::filesystem::path path = std::filesystem::path(wd_path)
 					/ std::string(reinterpret_cast<const char *>(event) + offsetof(inotify_event, name));
-				if ((mask & IN_CREATE) != 0 && onCreate)
-					onCreate(path);
-				if ((mask & IN_DELETE_SELF) != 0 && onRemoveSelf)
-					onRemoveSelf(path);
-				if ((mask & IN_DELETE) != 0 && onRemoveChild)
-					onRemoveChild(wd_path, path);
-				if ((mask & IN_MOVE_SELF) != 0 && onRenameSelf)
-					onRenameSelf(wd_path);
-				if ((mask & IN_MOVE) != 0 && onRenameChild)
-					onRenameChild(wd_path, path);
-				if ((mask & IN_MODIFY) != 0 && onModify)
-					onModify(path);
-				if ((mask & IN_ATTRIB) != 0 && onAttributes)
-					onAttributes(path);
-				if (onAny)
-					onAny(path);
+				if (!filter || filter(path)) {
+					if ((mask & IN_CREATE) != 0 && onCreate)
+						onCreate(path);
+					if ((mask & IN_DELETE_SELF) != 0 && onRemoveSelf)
+						onRemoveSelf(path);
+					if ((mask & IN_DELETE) != 0 && onRemoveChild)
+						onRemoveChild(wd_path, path);
+					if ((mask & IN_MOVE_SELF) != 0 && onRenameSelf)
+						onRenameSelf(wd_path);
+					if ((mask & IN_MOVE) != 0 && onRenameChild)
+						onRenameChild(wd_path, path);
+					if ((mask & IN_MODIFY) != 0 && onModify)
+						onModify(path);
+					if ((mask & IN_ATTRIB) != 0 && onAttributes)
+						onAttributes(path);
+					if (onAny)
+						onAny(path);
+				}
 			}
 		}
 
