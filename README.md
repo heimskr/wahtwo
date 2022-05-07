@@ -12,17 +12,17 @@ Only files with 'a' in the name are monitored.
 Wahtwo::Watcher watcher({"."}, true);
 
 watcher.filter = [](const std::filesystem::path &path) {
-	return path.stem().string().find('a') != std::string::npos;
+    return path.stem().string().find('a') != std::string::npos;
 };
 
 watcher.onModify = [](const std::filesystem::path &path) {
-	if (path.extension() == ".cpp")
-		std::cout << path << std::endl;
+    if (path.extension() == ".cpp")
+        std::cout << path << std::endl;
 };
 
 watcher.onCreate = [&](const std::filesystem::path &path) {
-	if (path.extension() == ".py")
-		watcher.stop();
+    if (path.extension() == ".py")
+        watcher.stop();
 };
 
 watcher.start(); // Launch thread
