@@ -14,7 +14,20 @@ static void callback(ConstFSEventStreamRef stream_ref,
 	const char **paths = reinterpret_cast<const char **>(event_paths);
 	std::cout << "num_events: " << num_events << "\n";
 	for (size_t i = 0; i < num_events; ++i) {
-		std::cout << i << ": \"" << paths[i] << "\" " << event_flags[i] << ' ' << event_ids[i] << '\n';
+		auto flags = event_flags[i];
+		std::cout << i << ": \"" << paths[i] << "\" " << flags << ' ' << event_ids[i] << '\n';
+		if (flags & kFSEventStreamEventFlagItemCreated)
+			std::cout << "    created\n";
+		if (flags & kFSEventStreamEventFlagItemRemoved)
+			std::cout << "    removed\n";
+		if (flags & kFSEventStreamEventFlagItemRenamed)
+			std::cout << "    renamed\n";
+		if (flags & kFSEventStreamEventFlagItemModified)
+			std::cout << "    modified\n";
+		if (flags & kFSEventStreamEventFlagItemChangeOwner)
+			std::cout << "    owner changed\n";
+		if (flags & kFSEventStreamEventFlagItemCloned)
+			std::cout << "    cloned\n";
 	}
 }
 
@@ -35,7 +48,8 @@ CFArrayRef getArrayRef(const std::vector<std::string> &strings) {
 int main() {
 	std::vector<std::string> paths {"./src", "./include"};
 	auto stream = FSEventStreamCreate(kCFAllocatorDefault, callback, nullptr, getArrayRef(paths),
-		kFSEventStreamEventIdSinceNow, 0.5, kFSEventStreamCreateFlagNone);
+		// kFSEventStreamEventIdSinceNow, 0.5, kFSEventStreamCreateFlagNone);
+		kFSEventStreamEventIdSinceNow, 0.5, kFSEventStreamCreateFlagFileEvents);
 	FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
 	FSEventStreamStart(stream);
 	CFRunLoopRun();
