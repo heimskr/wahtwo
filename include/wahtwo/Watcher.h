@@ -43,7 +43,11 @@ namespace Wahtwo {
 	class Error: public std::runtime_error {
 		public:
 			Error(const std::string &what_, int error_): std::runtime_error(what_), error(error_) {
-				errorString = strerror_l(errno, uselocale(locale_t(0)));
+#ifdef __linux__
+				errorString = strerror_l(error, uselocale(locale_t(0)));
+#else
+				errorString = strerror(error);
+#endif
 				description = what_ + ": " + errorString;
 			}
 
