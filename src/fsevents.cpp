@@ -77,6 +77,7 @@ namespace Wahtwo {
 		for (size_t i = 0; i < num_events; ++i) {
 			std::filesystem::path path(paths[i]);
 			if (!filter || filter(path)) {
+				onAny(path);
 				const auto flags = event_flags[i];
 				const auto ids = event_ids[i];
 				const bool removed = (flags & kFSEventStreamEventFlagItemRemoved) != 0;

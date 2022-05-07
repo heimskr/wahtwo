@@ -20,6 +20,7 @@ namespace Wahtwo {
 			Callback onModify;
 			Callback onOwnerChange;
 			Callback onClone;
+			Callback onAny;
 
 			std::thread worker;
 
