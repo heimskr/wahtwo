@@ -79,13 +79,14 @@ namespace Wahtwo {
 			if (!filter || filter(path)) {
 				const auto flags = event_flags[i];
 				const auto ids = event_ids[i];
-				if ((flags & kFSEventStreamEventFlagItemCreated) != 0 && onCreate)
+				const bool removed = (flags & kFSEventStreamEventFlagItemRemoved) != 0;
+				if (!removed && (flags & kFSEventStreamEventFlagItemCreated) != 0 && onCreate)
 					onCreate(path);
-				if ((flags & kFSEventStreamEventFlagItemRemoved) != 0 && onRemove)
+				if (removed && onRemove)
 					onRemove(path);
 				if ((flags & kFSEventStreamEventFlagItemRenamed) != 0 && onRename)
 					onRename(path);
-				if ((flags & kFSEventStreamEventFlagItemModified) != 0 && onModify)
+				if (!removed && (flags & kFSEventStreamEventFlagItemModified) != 0 && onModify)
 					onModify(path);
 				if ((flags & kFSEventStreamEventFlagItemChangeOwner) != 0 && onOwnerChange)
 					onOwnerChange(path);
