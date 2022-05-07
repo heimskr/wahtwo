@@ -10,7 +10,10 @@
 namespace Wahtwo {
 	static constexpr size_t BUFFER_SIZE = sizeof(inotify_event) + NAME_MAX + 1;
 
-	INotifyWatcher::INotifyWatcher(const std::vector<std::string> &paths_, bool): paths(paths_) {}
+	INotifyWatcher::INotifyWatcher(const std::vector<std::string> &paths_, bool): paths(paths_) {
+		if (pipe(controlPipe) == -1)
+			throw Error("pipe failed", errno);
+	}
 
 	INotifyWatcher::~INotifyWatcher() {
 		if (running)
@@ -36,32 +39,48 @@ namespace Wahtwo {
 		}
 
 		ssize_t count = -2;
-		std::cerr << "Starting.\n";
 
 		auto buffer = std::make_unique<char[]>(BUFFER_SIZE);
 		const auto *event = reinterpret_cast<const inotify_event *>(buffer.get());
 
-		while (0 < (count = ::read(fd, buffer.get(), BUFFER_SIZE))) {
-			const auto &wd_path = watchDescriptors.at(event->wd);
-			const auto mask = event->mask;
-			const std::filesystem::path path =
-				std::string(reinterpret_cast<const char *>(event) + offsetof(inotify_event, name), event->len);
-			if (onAny)
-				onAny(path);
-			if ((mask & IN_CREATE) != 0 && onCreate)
-				onCreate(wd_path, path);
-			if ((mask & IN_DELETE_SELF) != 0 && onRemoveSelf)
-				onRemoveSelf(path);
-			if ((mask & IN_DELETE) != 0 && onRemoveChild)
-				onRemoveChild(wd_path, path);
-			if ((mask & IN_MOVE_SELF) != 0 && onRenameSelf)
-				onRenameSelf(wd_path);
-			if ((mask & IN_MOVE) != 0 && onRenameChild)
-				onRenameChild(wd_path, path);
-			if ((mask & IN_MODIFY) != 0 && onModify)
-				onModify(path);
-			if ((mask & IN_ATTRIB) != 0 && onAttributes)
-				onAttributes(path);
+		fd_set active_set;
+		FD_ZERO(&active_set);
+		FD_SET(fd, &active_set);
+		FD_SET(controlPipe[0], &active_set);
+
+		for (;;) {
+			fd_set read_set = active_set;
+			if (::select(FD_SETSIZE, &read_set, nullptr, nullptr, nullptr) == -1)
+				throw Error("select failed", errno);
+
+			if (FD_ISSET(controlPipe[0], &read_set))
+				break;
+
+			if (FD_ISSET(fd, &read_set)) {
+				count = ::read(fd, buffer.get(), BUFFER_SIZE);
+				if (count <= 0)
+					break;
+				const auto &wd_path = watchDescriptors.at(event->wd);
+				const auto mask = event->mask;
+				const std::filesystem::path path =
+					std::string(reinterpret_cast<const char *>(event) + offsetof(inotify_event, name), event->len);
+				if ((mask & IN_CREATE) != 0 && onCreate)
+					onCreate(wd_path, path);
+				if ((mask & IN_DELETE_SELF) != 0 && onRemoveSelf)
+					onRemoveSelf(path);
+				if ((mask & IN_DELETE) != 0 && onRemoveChild)
+					onRemoveChild(wd_path, path);
+				if ((mask & IN_MOVE_SELF) != 0 && onRenameSelf)
+					onRenameSelf(wd_path);
+				if ((mask & IN_MOVE) != 0 && onRenameChild)
+					onRenameChild(wd_path, path);
+				if ((mask & IN_MODIFY) != 0 && onModify)
+					onModify(path);
+				if ((mask & IN_ATTRIB) != 0 && onAttributes)
+					onAttributes(path);
+				if (onAny)
+					onAny(path);
+			}
 		}
 
 		if (count == -1)
@@ -69,16 +88,13 @@ namespace Wahtwo {
 
 		::close(fd);
 		fd = -1;
-
-		std::cerr << "Done. count[" << count << "]\n";
 	}
 
 	void INotifyWatcher::stop() {
 		if (!running)
 			return;
 
-		std::cerr << "Stopping.\n";
 		running = false;
-		// TODO
+		::write(controlPipe[1], &running, sizeof(running));
 	}
 }

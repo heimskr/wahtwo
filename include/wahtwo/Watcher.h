@@ -114,6 +114,7 @@ namespace Wahtwo {
 			std::vector<std::string> paths;
 			int fd;
 			std::map<int, std::string> watchDescriptors;
+			int controlPipe[2] {-1, -1};
 	};
 
 	using Watcher = INotifyWatcher;
