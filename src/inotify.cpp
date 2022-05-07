@@ -66,20 +66,22 @@ namespace Wahtwo {
 				const std::filesystem::path path = std::filesystem::path(wd_path)
 					/ std::string(reinterpret_cast<const char *>(event) + offsetof(inotify_event, name));
 
-				if ((mask & IN_DELETE) != 0 && (mask & IN_ISDIR) != 0) {
-					const std::string canonical = std::filesystem::canonical(path);
-					watchDescriptors.erase(canonical);
-					watchPaths.erase(event->wd);
-					inotify_rm_watch(fd, event->wd);
-				}
+				if (subfiles) {
+					if ((mask & IN_DELETE) != 0 && (mask & IN_ISDIR) != 0) {
+						const std::string canonical = std::filesystem::canonical(path);
+						watchDescriptors.erase(canonical);
+						watchPaths.erase(event->wd);
+						inotify_rm_watch(fd, event->wd);
+					}
 
-				if ((mask & IN_CREATE) != 0 && (mask & IN_ISDIR) != 0) {
-					const std::string canonical = std::filesystem::canonical(path);
-					const int wd = inotify_add_watch(fd, canonical.c_str(), MASK);
-					if (wd == -1)
-						throw Error("inotify_add_watch failed", errno);
-					watchDescriptors.emplace(canonical, wd);
-					watchPaths.emplace(wd, canonical);
+					if ((mask & IN_CREATE) != 0 && (mask & IN_ISDIR) != 0) {
+						const std::string canonical = std::filesystem::canonical(path);
+						const int wd = inotify_add_watch(fd, canonical.c_str(), MASK);
+						if (wd == -1)
+							throw Error("inotify_add_watch failed", errno);
+						watchDescriptors.emplace(canonical, wd);
+						watchPaths.emplace(wd, canonical);
+					}
 				}
 
 				if (!filter || filter(path)) {
