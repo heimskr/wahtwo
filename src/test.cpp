@@ -5,9 +5,7 @@
 #include "wahtwo/Watcher.h"
 
 int main() {
-	const std::vector<std::string> paths {"./src", "./include"};
-
-	Wahtwo::Watcher watcher(paths);
+	Wahtwo::Watcher watcher({"src", "include"});
 	watcher.filter   = [](const auto &path) { return path.extension() == ".cpp";  };
 	watcher.onCreate = [](const auto &path) { std::cout << path << " created\n";  };
 	watcher.onRemove = [](const auto &path) { std::cout << path << " removed\n";  };
