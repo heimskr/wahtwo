@@ -25,6 +25,5 @@ watcher.onCreate = [&](const std::filesystem::path &path) {
         watcher.stop();
 };
 
-watcher.start(); // Launch thread
-watcher.join();  // Wait for thread to finish
+watcher.start();
 ```

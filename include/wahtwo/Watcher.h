@@ -8,7 +8,6 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <thread>
 #include <vector>
 
 namespace Wahtwo {
