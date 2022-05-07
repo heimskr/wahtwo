@@ -8,7 +8,8 @@
 namespace Wahtwo {
 	static constexpr size_t BUFFER_SIZE = sizeof(inotify_event) + NAME_MAX + 1;
 
-	INotifyWatcher::INotifyWatcher(const std::vector<std::string> &paths_, bool): paths(paths_) {
+	INotifyWatcher::INotifyWatcher(const std::vector<std::string> &paths_, bool subfiles_):
+	subfiles(subfiles_), paths(paths_) {
 		if (pipe(controlPipe) == -1)
 			throw Error("pipe failed", errno);
 	}
@@ -28,13 +29,15 @@ namespace Wahtwo {
 		if (fd == -1)
 			throw Error("inotify_init failed", errno);
 
-		for (const auto &path: paths) {
-			const int wd = inotify_add_watch(fd, path.c_str(),
-				IN_MODIFY | IN_MOVE_SELF | IN_ATTRIB | IN_CREATE | IN_DELETE_SELF | IN_MOVE | IN_DELETE);
-			if (wd == -1)
-				throw Error("inotify_add_watch failed", errno);
-			watchDescriptors.emplace(wd, path);
-		}
+		if (subfiles) {
+			for (const auto &path: paths)
+				if (std::filesystem::is_directory(path))
+					addRecursive(path, true);
+				else
+					addWatch(path);
+		} else
+			for (const auto &path: paths)
+				addWatch(path);
 
 		ssize_t count = -2;
 
@@ -58,10 +61,27 @@ namespace Wahtwo {
 				count = ::read(fd, buffer.get(), BUFFER_SIZE);
 				if (count <= 0)
 					break;
-				const auto &wd_path = watchDescriptors.at(event->wd);
+				const auto &wd_path = watchPaths.at(event->wd);
 				const auto mask = event->mask;
 				const std::filesystem::path path = std::filesystem::path(wd_path)
 					/ std::string(reinterpret_cast<const char *>(event) + offsetof(inotify_event, name));
+
+				if ((mask & IN_DELETE) != 0 && (mask & IN_ISDIR) != 0) {
+					const std::string canonical = std::filesystem::canonical(path);
+					watchDescriptors.erase(canonical);
+					watchPaths.erase(event->wd);
+					inotify_rm_watch(fd, event->wd);
+				}
+
+				if ((mask & IN_CREATE) != 0 && (mask & IN_ISDIR) != 0) {
+					const std::string canonical = std::filesystem::canonical(path);
+					const int wd = inotify_add_watch(fd, canonical.c_str(), MASK);
+					if (wd == -1)
+						throw Error("inotify_add_watch failed", errno);
+					watchDescriptors.emplace(canonical, wd);
+					watchPaths.emplace(wd, canonical);
+				}
+
 				if (!filter || filter(path)) {
 					if ((mask & IN_CREATE) != 0 && onCreate)
 						onCreate(path);
@@ -96,5 +116,25 @@ namespace Wahtwo {
 
 		running = false;
 		::write(controlPipe[1], &running, sizeof(running));
+	}
+
+	void INotifyWatcher::addRecursive(const std::filesystem::path &path, bool add_watch) {
+		if (add_watch)
+			addWatch(path.string());
+
+		for (const auto &entry: std::filesystem::directory_iterator(path)) {
+			const auto subpath = entry.path();
+			if (std::filesystem::is_directory(subpath))
+				addRecursive(subpath, true);
+		}
+	}
+
+	void INotifyWatcher::addWatch(const std::string &path) {
+		const std::string canonical = std::filesystem::canonical(path).string();
+		const int wd = inotify_add_watch(fd, canonical.c_str(), MASK);
+		if (wd == -1)
+			throw Error("inotify_add_watch failed", errno);
+		watchDescriptors.emplace(canonical, wd);
+		watchPaths.emplace(wd, canonical);
 	}
 }

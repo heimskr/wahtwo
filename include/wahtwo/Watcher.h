@@ -105,7 +105,7 @@ namespace Wahtwo {
 namespace Wahtwo {
 	class INotifyWatcher: public WatcherBase {
 		public:
-			INotifyWatcher(const std::vector<std::string> &paths, bool = true);
+			INotifyWatcher(const std::vector<std::string> &paths, bool subfiles = true);
 			~INotifyWatcher() override;
 
 			void start() override;
@@ -114,11 +114,18 @@ namespace Wahtwo {
 			const std::vector<std::string> & getPaths() override { return paths; }
 
 		private:
+			constexpr static uint32_t MASK = IN_MODIFY | IN_MOVE_SELF | IN_ATTRIB | IN_CREATE | IN_DELETE_SELF | IN_MOVE
+			                               | IN_DELETE;
+			bool subfiles;
 			bool running = false;
 			std::vector<std::string> paths;
 			int fd;
-			std::map<int, std::string> watchDescriptors;
+			std::map<int, std::string> watchPaths;
+			std::map<std::string, int> watchDescriptors;
 			int controlPipe[2] {-1, -1};
+
+			void addRecursive(const std::filesystem::path &, bool add_watch = true);
+			void addWatch(const std::string &path);
 	};
 
 	using Watcher = INotifyWatcher;
