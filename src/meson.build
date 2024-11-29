@@ -12,13 +12,15 @@ else
 	error('Unsupported platform')
 endif
 
-inc_dirs = [
-	include_directories('..' / 'include'),
-]
+inc_dirs = [include_directories('..' / 'include')]
 
-library('wahtwo', wahtwo_sources,
+wahtwo_lib = library('wahtwo', wahtwo_sources,
 	dependencies: wahtwo_deps,
 	link_with: link_with,
 	link_args: link_args,
 	install: true,
-	include_directories: [inc_dirs])
+	include_directories: inc_dirs)
+
+wahtwo = declare_dependency(
+	include_directories: inc_dirs,
+	link_with: wahtwo_lib)
