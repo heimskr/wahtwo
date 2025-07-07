@@ -12,8 +12,7 @@ static CFArrayRef getArrayRef(const std::vector<std::string> &strings) {
 
 	for (const auto &string: strings) {
 		auto wide = converter.from_bytes(string);
-		string_refs.push_back(CFStringCreateWithCharacters(kCFAllocatorDefault,
-			reinterpret_cast<const UniChar *>(wide.data()), wide.size()));
+		string_refs.push_back(CFStringCreateWithCharacters(kCFAllocatorDefault, reinterpret_cast<const UniChar *>(wide.data()), wide.size()));
 	}
 
 	return CFArrayCreate(nullptr, reinterpret_cast<const void **>(string_refs.data()), string_refs.size(), nullptr);
@@ -21,48 +20,50 @@ static CFArrayRef getArrayRef(const std::vector<std::string> &strings) {
 
 static bool is_subpath(const std::filesystem::path &basepath, const std::filesystem::path &subpath) {
 	// https://stackoverflow.com/a/70888233/227663
-	for (auto base = basepath.begin(), sub = subpath.begin(), end = basepath.end(), subend = subpath.end();
-		 base != end; ++base, ++sub)
-		if (sub == subend || *base != *sub)
+	for (auto base = basepath.begin(), sub = subpath.begin(), end = basepath.end(), subend = subpath.end(); base != end; ++base, ++sub) {
+		if (sub == subend || *base != *sub) {
 			return false;
+		}
+	}
 	return true;
 }
 
 namespace Wahtwo {
-	void fsew_callback(ConstFSEventStreamRef, void *callback_info, size_t num_events, void *event_paths,
-	                   const FSEventStreamEventFlags event_flags[], const FSEventStreamEventId event_ids[]) {
-		reinterpret_cast<Wahtwo::FSEventsWatcher *>(callback_info)->callback(num_events,
-			reinterpret_cast<const char **>(event_paths), event_flags, event_ids);
+	void fsew_callback(ConstFSEventStreamRef, void *callback_info, size_t num_events, void *event_paths, const FSEventStreamEventFlags event_flags[], const FSEventStreamEventId event_ids[]) {
+		reinterpret_cast<Wahtwo::FSEventsWatcher *>(callback_info)->callback(num_events, reinterpret_cast<const char **>(event_paths), event_flags, event_ids);
 	}
 
-	FSEventsWatcher::FSEventsWatcher(const std::vector<std::string> &paths_, bool subfiles_): subfiles(subfiles_) {
-		setPaths(paths_);
-	}
+	FSEventsWatcher::FSEventsWatcher(std::vector<std::string> paths, bool subfiles):
+		subfiles(subfiles) {
+			setPaths(std::move(paths));
+		}
 
 	FSEventsWatcher::~FSEventsWatcher() {
-		if (running)
+		if (running) {
 			stop();
+		}
 
-		if (cfPaths != nullptr)
+		if (cfPaths != nullptr) {
 			CFRelease(cfPaths);
+		}
 	}
 
 	void FSEventsWatcher::start() {
-		if (running || stream != nullptr)
+		if (running || stream != nullptr) {
 			throw std::runtime_error("Can't start FSEventsWatcher: already running");
+		}
 		running = true;
 		context = std::unique_ptr<FSEventStreamContext>(new FSEventStreamContext {0, this, nullptr, nullptr, nullptr});
-		stream = FSEventStreamCreate(kCFAllocatorDefault, fsew_callback, context.get(), getArrayRef(pathStrings),
-			kFSEventStreamEventIdSinceNow, 0.5,
-			subfiles? kFSEventStreamCreateFlagFileEvents : kFSEventStreamCreateFlagNone);
+		stream = FSEventStreamCreate(kCFAllocatorDefault, fsew_callback, context.get(), getArrayRef(pathStrings), kFSEventStreamEventIdSinceNow, 0.5, subfiles? kFSEventStreamCreateFlagFileEvents : kFSEventStreamCreateFlagNone);
 		FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
 		FSEventStreamStart(stream);
 		CFRunLoopRun();
 	}
 
 	void FSEventsWatcher::stop() {
-		if (!running)
+		if (!running) {
 			return;
+		}
 
 		running = false;
 		if (stream != nullptr) {
@@ -70,63 +71,83 @@ namespace Wahtwo {
 			FSEventStreamInvalidate(stream);
 			FSEventStreamRelease(stream);
 			stream = nullptr;
-		} else
+		} else {
 			throw std::runtime_error("Can't stop FSEventsWatcher: stream is null");
+		}
 	}
 
-	void FSEventsWatcher::setPaths(const std::vector<std::string> &paths_) {
-		if (cfPaths != nullptr)
+	void FSEventsWatcher::setPaths(std::vector<std::string> paths) {
+		if (cfPaths != nullptr) {
 			CFRelease(cfPaths);
-		cfPaths = getArrayRef(pathStrings = paths_);
+		}
+
+		cfPaths = getArrayRef(pathStrings = std::move(paths));
 		paths.clear();
-		for (const auto &string: pathStrings)
+		for (const auto &string: pathStrings) {
 			try {
 				paths.insert(std::filesystem::canonical(string));
 			} catch (const std::filesystem::filesystem_error &) {
 				paths.insert(string);
 			}
+		}
 	}
 
-	void FSEventsWatcher::callback(size_t num_events, const char **event_paths,
-	                               const FSEventStreamEventFlags *event_flags, const FSEventStreamEventId *) {
+	void FSEventsWatcher::callback(size_t num_events, const char **event_paths, const FSEventStreamEventFlags *event_flags, const FSEventStreamEventId *) {
 		for (size_t i = 0; i < num_events; ++i) {
 			std::filesystem::path path(event_paths[i]);
 			if (!filter || filter(path)) {
 				const auto flags = event_flags[i];
 				const bool removed = (flags & kFSEventStreamEventFlagItemRemoved) != 0;
-				if (!removed && (flags & kFSEventStreamEventFlagItemCreated) != 0 && onCreate)
+				if (!removed && (flags & kFSEventStreamEventFlagItemCreated) != 0 && onCreate) {
 					onCreate(path);
+				}
+
 				if (removed) {
 					// This is so convoluted. inotify is better.
 					if (paths.contains(path)) {
-						if (onRemoveSelf)
+						if (onRemoveSelf) {
 							onRemoveSelf(path);
-					} else if (onRemoveChild)
-						for (const auto &watched: paths)
+						}
+					} else if (onRemoveChild) {
+						for (const auto &watched: paths) {
 							if (is_subpath(watched, path)) {
 								onRemoveChild(watched, path);
 								break;
 							}
+						}
+					}
 				}
+
 				if ((flags & kFSEventStreamEventFlagItemRenamed) != 0) {
 					if (paths.contains(path)) {
-						if (onRenameSelf)
+						if (onRenameSelf) {
 							onRenameSelf(path);
-					} else if (onRenameChild)
-						for (const auto &watched: paths)
+						}
+					} else if (onRenameChild) {
+						for (const auto &watched: paths) {
 							if (is_subpath(watched, path)) {
 								onRenameChild(watched, path);
 								break;
 							}
+						}
+					}
 				}
-				if (!removed && (flags & kFSEventStreamEventFlagItemModified) != 0 && onModify)
+
+				if (!removed && (flags & kFSEventStreamEventFlagItemModified) != 0 && onModify) {
 					onModify(path);
-				if ((flags & kFSEventStreamEventFlagItemChangeOwner) != 0 && onAttributes)
+				}
+
+				if ((flags & kFSEventStreamEventFlagItemChangeOwner) != 0 && onAttributes) {
 					onAttributes(path);
-				if ((flags & kFSEventStreamEventFlagItemCloned) != 0 && onClone)
+				}
+
+				if ((flags & kFSEventStreamEventFlagItemCloned) != 0 && onClone) {
 					onClone(path);
-				if (onAny)
+				}
+
+				if (onAny) {
 					onAny(path);
+				}
 			}
 		}
 	}

@@ -51,15 +51,15 @@ namespace Wahtwo {
 				description = what_ + ": " + errorString;
 			}
 
-			int error;
-
-		private:
-			std::string description;
-			char *errorString = nullptr;
+			int error = -1;
 
 			const char * what() const throw() {
 				return description.c_str();
 			}
+
+		private:
+			std::string description;
+			char *errorString = nullptr;
 	};
 }
 
@@ -72,7 +72,7 @@ namespace Wahtwo {
 
 	class FSEventsWatcher: public WatcherBase {
 		public:
-			FSEventsWatcher(const std::vector<std::string> &paths, bool subfiles = true);
+			FSEventsWatcher(std::vector<std::string> paths, bool subfiles = true);
 			~FSEventsWatcher() override;
 
 			void start() override;
@@ -89,12 +89,10 @@ namespace Wahtwo {
 			FSEventStreamRef stream = nullptr;
 			std::unique_ptr<FSEventStreamContext> context;
 
-			void setPaths(const std::vector<std::string> &);
-			void callback(size_t num_events, const char **event_paths, const FSEventStreamEventFlags *flags,
-			              const FSEventStreamEventId *ids);
+			void setPaths(std::vector<std::string>);
+			void callback(size_t num_events, const char **event_paths, const FSEventStreamEventFlags *flags, const FSEventStreamEventId *ids);
 
-			friend void fsew_callback(ConstFSEventStreamRef, void *, size_t, void *, const FSEventStreamEventFlags *,
-			                          const FSEventStreamEventId *);
+			friend void fsew_callback(ConstFSEventStreamRef, void *, size_t, void *, const FSEventStreamEventFlags *, const FSEventStreamEventId *);
 	};
 
 	using Watcher = FSEventsWatcher;
@@ -105,7 +103,7 @@ namespace Wahtwo {
 namespace Wahtwo {
 	class INotifyWatcher: public WatcherBase {
 		public:
-			INotifyWatcher(const std::vector<std::string> &paths, bool subfiles = true);
+			INotifyWatcher(std::vector<std::string> paths, bool subfiles = true);
 			~INotifyWatcher() override;
 
 			void start() override;
@@ -114,15 +112,14 @@ namespace Wahtwo {
 			const std::vector<std::string> & getPaths() override { return paths; }
 
 		private:
-			constexpr static uint32_t MASK = IN_MODIFY | IN_MOVE_SELF | IN_ATTRIB | IN_CREATE | IN_DELETE_SELF | IN_MOVE
-			                               | IN_DELETE;
-			bool subfiles;
-			bool running = false;
+			constexpr static uint32_t MASK = IN_MODIFY | IN_MOVE_SELF | IN_ATTRIB | IN_CREATE | IN_DELETE_SELF | IN_MOVE | IN_DELETE;
 			std::vector<std::string> paths;
-			int fd;
 			std::map<int, std::string> watchPaths;
 			std::map<std::string, int> watchDescriptors;
 			int controlPipe[2] {-1, -1};
+			int fd = -1;
+			bool subfiles = true;
+			bool running = false;
 
 			void addRecursive(const std::filesystem::path &, bool add_watch = true);
 			void addWatch(const std::string &path);
