@@ -53,13 +53,13 @@ namespace Wahtwo {
 
 			int error;
 
-		private:
-			std::string description;
-			char *errorString = nullptr;
-
 			const char * what() const throw() {
 				return description.c_str();
 			}
+
+		private:
+			std::string description;
+			char *errorString = nullptr;
 	};
 }
 
