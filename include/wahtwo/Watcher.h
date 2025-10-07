@@ -53,7 +53,7 @@ namespace Wahtwo {
 
 			int error = -1;
 
-			const char * what() const throw() {
+			const char * what() const noexcept final {
 				return description.c_str();
 			}
 
